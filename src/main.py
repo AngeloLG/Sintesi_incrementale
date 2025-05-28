@@ -16,8 +16,8 @@ BASE_OUTPUT_DIR = "output"
 SUMMARIES_SUBDIR = "summaries"
 DEFAULT_CHUNK_MODEL = "gpt-4.1-mini"
 DEFAULT_FINAL_MODEL = "gpt-4.1-mini"
-DEFAULT_CHUNK_MAX_TOKENS = 1000 # Was 1000
-DEFAULT_FINAL_MAX_TOKENS = 3000 # Changed from 2000 to 3000
+DEFAULT_CHUNK_MAX_TOKENS = 1000
+DEFAULT_FINAL_MAX_TOKENS = 4000 # Changed from 3000 to 4000
 DEFAULT_WORD_LIMIT_PER_CHUNK = 10000
 
 # Load environment variables from .env file if it exists
@@ -73,8 +73,29 @@ def _extract_and_chunk_text(input_file: str) -> Tuple[str, List[str]]:
         click.echo(click.style(f"Attenzione: Nessun testo estratto da {input_file}.", fg='yellow'))
         return extracted_text, [] # Return empty list of chunks
     
-    logger.info(f"Testo estratto con successo. Lunghezza: {len(extracted_text)} caratteri.")
-    click.echo(click.style(f"Testo estratto. Primi 200 chars: {extracted_text[:200]}...", fg='green'))
+    logger.info(f"Testo estratto con successo. Lunghezza originale: {len(extracted_text)} caratteri.")
+    
+    # --- SEZIONE PER LA PULIZIA GUTENBERG ---
+    cleanup_phrase = "*** END OF THE PROJECT GUTENBERG EBOOK"
+    phrase_index = extracted_text.find(cleanup_phrase)
+
+    if phrase_index != -1:
+        logger.info(f"Trovata la dicitura di fine progetto Gutenberg alla posizione {phrase_index}.")
+        original_length_before_cleanup = len(extracted_text)
+        extracted_text = extracted_text[:phrase_index]
+        logger.info(f"Testo troncato. Nuova lunghezza: {len(extracted_text)} caratteri (rimossi {original_length_before_cleanup - len(extracted_text)} caratteri).")
+        click.echo(click.style("Rilevata e rimossa sezione finale del Progetto Gutenberg.", fg='blue'))
+    else:
+        logger.info("Dicitura di fine progetto Gutenberg non trovata. Il testo non è stato troncato.")
+    # --- FINE SEZIONE PULIZIA ---
+        
+    # Log e echo dopo la potenziale pulizia
+    if extracted_text.strip():
+        logger.info(f"Testo (dopo pulizia) pronto per chunking. Lunghezza: {len(extracted_text)} caratteri.")
+        click.echo(click.style(f"Testo (dopo pulizia) pronto per chunking. Primi 200 chars: {extracted_text[:200]}...", fg='green'))
+    else:
+        logger.warning(f"Il testo estratto da {input_file} è diventato vuoto dopo la pulizia.")
+        click.echo(click.style(f"Attenzione: Testo vuoto dopo la pulizia da {input_file}.", fg='yellow'))
 
     logger.info("Inizio suddivisione del testo in chunk.")
     text_chunks = chunk_text_by_word_limit(extracted_text, word_limit=DEFAULT_WORD_LIMIT_PER_CHUNK)
@@ -163,7 +184,7 @@ def _summarize_all_chunks(
             summary = openai_client.summarize_text(
                 chunk_text,
                 prompt_instructions=CHUNK_SUMMARY_PROMPT_INSTRUCTIONS,
-                model=DEFAULT_CHUNK_MODEL, 
+                model=DEFAULT_CHUNK_MODEL,
                 max_tokens_summary=DEFAULT_CHUNK_MAX_TOKENS
             )
 
@@ -242,7 +263,7 @@ def _perform_final_summary(
         final_summary = openai_client.summarize_text(
             aggregated_text,
             prompt_instructions=FINAL_SUMMARY_PROMPT_INSTRUCTIONS,
-            model=DEFAULT_FINAL_MODEL, 
+            model=DEFAULT_FINAL_MODEL,
             max_tokens_summary=DEFAULT_FINAL_MAX_TOKENS
         )
         ctx.obj['final_summary_text'] = final_summary # Store in context for saving
@@ -362,13 +383,35 @@ def process(ctx, input_file):
         if not extracted_text.strip():
             logger.warning(f"Nessun testo è stato estratto da {input_file} o il testo è vuoto.")
             click.echo(click.style(f"Attenzione: Nessun testo estratto da {input_file}.", fg='yellow'))
+            # text_chunks = [] # Sarà gestito più avanti
         else:
-            logger.info(f"Testo estratto con successo. Lunghezza: {len(extracted_text)} caratteri.")
-            click.echo(click.style(f"Testo estratto. Primi 200 chars: {extracted_text[:200]}...", fg='green'))
+            logger.info(f"Testo estratto con successo. Lunghezza originale: {len(extracted_text)} caratteri.")
+
+            # --- SEZIONE PER LA PULIZIA GUTENBERG ---
+            cleanup_phrase = "*** END OF THE PROJECT GUTENBERG EBOOK"
+            phrase_index = extracted_text.find(cleanup_phrase)
+
+            if phrase_index != -1:
+                logger.info(f"Trovata la dicitura di fine progetto Gutenberg alla posizione {phrase_index}.")
+                original_length_before_cleanup = len(extracted_text)
+                extracted_text = extracted_text[:phrase_index]
+                logger.info(f"Testo troncato. Nuova lunghezza: {len(extracted_text)} caratteri (rimossi {original_length_before_cleanup - len(extracted_text)} caratteri).")
+                click.echo(click.style("Rilevata e rimossa sezione finale del Progetto Gutenberg.", fg='blue'))
+            else:
+                logger.info("Dicitura di fine progetto Gutenberg non trovata. Il testo non è stato troncato.")
+            # --- FINE SEZIONE PULIZIA ---
+
+            # Log e echo dopo la potenziale pulizia
+            if extracted_text.strip():
+                logger.info(f"Testo (dopo pulizia) pronto per chunking. Lunghezza: {len(extracted_text)} caratteri.")
+                click.echo(click.style(f"Testo (dopo pulizia) pronto per chunking. Primi 200 chars: {extracted_text[:200]}...", fg='green'))
+            else:
+                logger.warning(f"Il testo estratto da {input_file} è diventato vuoto dopo la pulizia.")
+                click.echo(click.style(f"Attenzione: Testo vuoto dopo la pulizia da {input_file}.", fg='yellow'))
 
         # 2. Text Chunking
-        if not extracted_text.strip():
-            logger.warning("Il testo estratto è vuoto, la fase di chunking verrà saltata.")
+        if not extracted_text.strip(): # Check again if text is empty after cleanup or initial extraction
+            logger.warning("Il testo è vuoto, la fase di chunking verrà saltata.")
             text_chunks = []
         else:
             logger.info("Inizio suddivisione del testo in chunk.")
@@ -401,7 +444,8 @@ def process(ctx, input_file):
         # 4. LLM Summarization of Chunks (Passo 2.3)
         if openai_client and saved_chunk_files:
             logger.info(f"Inizio sintesi dei {len(saved_chunk_files)} chunk(s) con LLM.")
-            click.echo(f"Inizio sintesi dei chunk con LLM (modello: gpt-4.1-mini)... Aperta parentesi graffa questo potrebbe richiedere tempo.")
+            click.echo(f"Inizio sintesi dei chunk con LLM (modello: {DEFAULT_CHUNK_MODEL})... " +
+                       "Questo potrebbe richiedere tempo.")
             
             chunk_summaries_content = []
             chunk_summaries_paths = []
@@ -437,8 +481,8 @@ def process(ctx, input_file):
                         summary = openai_client.summarize_text(
                             chunk_text,
                             prompt_instructions=CHUNK_SUMMARY_PROMPT_INSTRUCTIONS,
-                            model="gpt-4.1-mini", 
-                            max_tokens_summary=1000 # Aumentato per chunk summary
+                            model=DEFAULT_CHUNK_MODEL,
+                            max_tokens_summary=DEFAULT_CHUNK_MAX_TOKENS
                         )
                         # chunk_summaries_content.append(summary) # Contenuto non più usato direttamente
 
@@ -524,7 +568,8 @@ def process(ctx, input_file):
         if openai_client and ctx.obj.get('aggregated_summaries_file_path'):
             aggregated_file_path = ctx.obj['aggregated_summaries_file_path']
             logger.info(f"Inizio sintesi finale LLM da: {aggregated_file_path}")
-            click.echo(f"Inizio sintesi finale con LLM... Aperta parentesi graffa questo potrebbe richiedere tempo.")
+            click.echo(f"Inizio sintesi finale con LLM... " +
+                       "Questo potrebbe richiedere tempo.")
             try:
                 with open(aggregated_file_path, 'r', encoding='utf-8') as f_agg:
                     aggregated_text = f_agg.read()
@@ -537,7 +582,7 @@ def process(ctx, input_file):
                     final_summary = openai_client.summarize_text(
                         aggregated_text,
                         prompt_instructions=FINAL_SUMMARY_PROMPT_INSTRUCTIONS,
-                        model="gpt-4.1-mini", 
+                        model=DEFAULT_FINAL_MODEL,
                         max_tokens_summary=DEFAULT_FINAL_MAX_TOKENS
                     )
                     ctx.obj['final_summary_text'] = final_summary

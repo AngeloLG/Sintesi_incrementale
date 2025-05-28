@@ -5,20 +5,23 @@ import os
 logger = logging.getLogger(__name__)
 
 # Prompt instructions for chunk summarization (Passo 2.3)
-CHUNK_SUMMARY_PROMPT_INSTRUCTIONS = """
-## Task
+CHUNK_SUMMARY_PROMPT_INSTRUCTIONS = """## Task
 
 Summarize the following text excerpt (up to 10,000 words) into a **concise, information-rich summary of ~1,000 words**.  
 
 ## Instructions
 
 - Analyze the text carefully.
+- Ignore:
+  - editorial information, copyright, digitisation project;
+  - added documents not part of the text (e.g. licences, critical introductions).
+- Summarise **main text only**.
 - Structure the summary with these sections:
   1. **Topics Covered**
   2. **Key Characters** (with brief descriptions)
   3. **Main Themes**
   4. **Main Points & Events**
-  5. **Key Takeaways / Insights**
+  
 - Be precise and comprehensive: do **not** omit details relevant for understanding the full book.
 - Use clear, concise language.
 - For fiction: capture main plot and character dynamics.  
@@ -36,14 +39,13 @@ Summarize the following text excerpt (up to 10,000 words) into a **concise, info
 2. **Key Characters**  
 3. **Main Themes**  
 4. **Main Points & Events**  
-5. **Key Takeaways / Insights**  
+ 
 *(Total: ~1,000 words)*
 Write the entire summary in Italian
 """
 
 # Prompt instructions for final synthesis from aggregated chunk summaries (Passo 3.2)
-FINAL_SUMMARY_PROMPT_INSTRUCTIONS = """
-## Task
+FINAL_SUMMARY_PROMPT_INSTRUCTIONS = """## Task
 
 You are given multiple Italian summaries, each covering a different portion of a book.  
 Your goal is to synthesize these into a **single, comprehensive final summary** of approximately 1,500 words.
@@ -59,6 +61,9 @@ Your goal is to synthesize these into a **single, comprehensive final summary** 
   For non-fiction: cover all main arguments, evidence, and conclusions.
 - If unsure whether to include information, favor inclusion.
 - Use clear and fluent Italian throughout.
+- Ignore:
+  - editorial information, copyright, digitisation project;
+  - added documents not part of the text (e.g. licences, critical introductions).
 
 ## Input
 <input-text>
@@ -70,7 +75,7 @@ Your goal is to synthesize these into a **single, comprehensive final summary** 
 2. **Key Characters**  
 3. **Main Themes**  
 4. **Main Points & Events**  
-5. **Key Takeaways / Insights**  
+ 
 *(Total: ~1,500 words)*
 Write the entire summary in Italian
 """
