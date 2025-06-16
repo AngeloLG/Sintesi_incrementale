@@ -1,6 +1,6 @@
-openai
 PyPDF2
 EbookLib
 python-dotenv
 click
-beautifulsoup4 
+beautifulsoup4
+openai
