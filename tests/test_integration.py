@@ -9,7 +9,7 @@ import subprocess
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 sys.path.insert(0, os.path.join(project_root, 'src'))
 
-# For potential direct imports (though CLI testing is primary here)
+# For potential direct imports (though CLI testing is preferred here)
 # from main import cli # This might be tricky due to click context
 
 # Path to the main script entry point (as a module)
