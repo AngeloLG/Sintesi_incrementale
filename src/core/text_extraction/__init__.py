@@ -3,7 +3,7 @@ from .base_extractor import TextExtractor
 from .txt_extractor import TxtExtractor
 from .pdf_extractor import PdfExtractor
 from .epub_extractor import EpubExtractor
-from .exceptions import UnsupportedFileTypeError, PdfExtractionError, EpubExtractionError
+from .exceptions import TextExtractionError, UnsupportedFileTypeError, PdfExtractionError, EpubExtractionError
 
 def get_text_extractor(file_path):
     """
@@ -36,6 +36,7 @@ def get_text_extractor(file_path):
 
 __all__ = [
     'TextExtractor', 
+    'TextExtractionError',
     'TxtExtractor', 
     'PdfExtractor', 
     'EpubExtractor', 

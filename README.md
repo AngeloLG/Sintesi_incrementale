@@ -1,141 +1,199 @@
-# Tool di Sintesi Incrementale
+# Tool di Sintesi Incrementale e Estrazione Testo
 
 ## Descrizione
 
-Il "Tool di Sintesi Incrementale" è un\'applicazione a riga di comando (CLI) progettata per elaborare documenti di testo (TXT, PDF, EPUB), estrarne il contenuto, suddividerlo in porzioni gestibili (chunk), generare riassunti di tali porzioni utilizzando un modello linguistico di grandi dimensioni (LLM) fornito da OpenAI, aggregare questi riassunti parziali e, infine, produrre una sintesi finale completa e coerente del documento originale, anch\'essa generata tramite LLM.
+Questo repository contiene due tool distinti:
 
-L\'obiettivo è fornire uno strumento automatizzato per ottenere una comprensione tematica approfondita di testi lunghi, specialmente libri o documenti estesi.
+1. **Tool di Sintesi Incrementale**: Un'applicazione CLI che elabora documenti di testo (TXT, PDF, EPUB), estrae il contenuto, lo suddivide in porzioni gestibili, genera riassunti utilizzando un LLM di OpenAI, e produce una sintesi finale completa.
 
-## Funzionalità Principali
+2. **Tool di Estrazione Testo**: Un'applicazione CLI standalone che si concentra solo sull'estrazione del testo da documenti (TXT, PDF, EPUB), utile quando non è necessaria la sintesi.
 
-- **Estrazione Testo Multi-Formato**: Supporta file `.txt`, `.pdf`, e `.epub`.
-- **Suddivisione Intelligente**: Divide il testo estratto in chunk di circa 10.000 parole, cercando di rispettare i confini di paragrafi e frasi.
-- **Sintesi Incrementale**:
-  - Genera un riassunto per ogni chunk di testo utilizzando l\'API di OpenAI (default: `gpt-4.1-mini`).
-  - Salva i chunk di testo e i loro rispettivi riassunti in file separati.
-- **Aggregazione dei Riassunti**: Unisce tutti i riassunti dei chunk in un unico file di testo.
-- **Sintesi Finale**: Utilizza l\'LLM per generare una sintesi finale completa (circa 1500 parole) basata sul testo dei riassunti aggregati, salvata in formato Markdown (`.md`).
-- **Output Organizzato**: Salva tutti i file generati (testo estratto, chunk, riassunti dei chunk, riassunti aggregati, sintesi finale) in una struttura di directory chiara sotto la cartella `output/nome_file_originale/`.
-- **Logging Avanzato**: Registra informazioni dettagliate sull\'esecuzione in console e in un file di log (`logs/app.log`) per il debug.
-- **Interfaccia CLI Intuitiva**: Utilizza `click` per una facile interazione da riga di comando.
-- **Configurazione API Key**: Permette di specificare la API key di OpenAI tramite opzione CLI o variabile d'ambiente.
+## Tool di Estrazione Testo
 
-## Prerequisiti
+### Descrizione
 
-- Python 3.8 o superiore.
-- Una API key valida di OpenAI.
+Il tool di estrazione testo è un'applicazione CLI standalone che permette di estrarre il contenuto testuale da file in vari formati (TXT, PDF, EPUB) senza procedere con la sintesi.
 
-## Installazione
+### Funzionalità Principali
 
-1.  **Clonare il Repository (o scaricare i file del progetto)**
-    Se il progetto è in un repository Git:
+- **Estrazione Testo Multi-Formato**: Supporta file `.txt`, `.pdf`, e `.epub`
+- **Output Configurabile**: Permette di specificare la directory di output
+- **Gestione Errori**: Fornisce messaggi di errore chiari per vari scenari
 
-    ```bash
-    git clone <url_del_repository>
-    cd tool_sintesi_incrementale
-    ```
+### Prerequisiti
 
-    Altrimenti, assicurarsi di avere tutti i file del progetto in una directory locale.
+- Python 3.8 o superiore
+- Le dipendenze elencate in `requirements.txt`
 
-2.  **Creare un Ambiente Virtuale**
-    È fortemente raccomandato utilizzare un ambiente virtuale Python. Dalla directory principale del progetto (`tool_sintesi_incrementale`):
+### Installazione
 
-    ```bash
-    python -m venv venv
-    ```
+1. **Clonare il Repository**
 
-3.  **Attivare l'Ambiente Virtuale**
+   ```bash
+   git clone <url_del_repository>
+   cd tool_sintesi_incrementale
+   ```
 
-    - Windows (PowerShell):
-      ```powershell
-      .\venv\Scripts\Activate.ps1
-      ```
-    - Windows (cmd.exe):
-      ```bash
-      .\venv\Scripts\activate.bat
-      ```
-    - Linux/macOS:
-      ```bash
-      source venv/bin/activate
-      ```
+2. **Creare e Attivare l'Ambiente Virtuale**
 
-4.  **Installare le Dipendenze**
-    Con l'ambiente virtuale attivo, installare le librerie necessarie:
-    ```bash
-    pip install -r requirements.txt
-    ```
+   ```bash
+   python -m venv venv
+   # Windows (PowerShell)
+   .\venv\Scripts\Activate.ps1
+   # Windows (cmd.exe)
+   .\venv\Scripts\activate.bat
+   # Linux/macOS
+   source venv/bin/activate
+   ```
 
-## Configurazione
+3. **Installare le Dipendenze**
+   ```bash
+   pip install -r requirements.txt
+   ```
 
-### API Key di OpenAI
+### Utilizzo
 
-Il tool richiede una API key di OpenAI per le funzionalità di sintesi. Puoi configurarla in due modi:
+Il tool si utilizza tramite la sua interfaccia a riga di comando. Assicurati che l'ambiente virtuale sia attivo e di essere nella directory principale del progetto.
 
-1.  **Variabile d'Ambiente (Raccomandato)**:
-    Crea un file `.env` nella directory principale del progetto (`tool_sintesi_incrementale`) con il seguente contenuto:
-
-    ```
-    OPENAI_API_KEY="la_tua_vera_api_key"
-    ```
-
-    Sostituisci `"la_tua_vera_api_key"` con la tua API key effettiva.
-
-2.  **Opzione CLI**:
-    Puoi passare la API key direttamente come opzione al momento dell'esecuzione del comando:
-    ```bash
-    python -m src.main --api-key="la_tua_vera_api_key" process ...
-    ```
-
-Se entrambe sono specificate, l'opzione CLI ha la precedenza sulla variabile d'ambiente per quella specifica esecuzione.
-
-## Utilizzo
-
-Il tool si utilizza tramite la sua interfaccia a riga di comando. Assicurati che l'ambiente virtuale sia attivo e di essere nella directory principale del progetto (`tool_sintesi_incrementale`).
-
-Il punto di ingresso principale è `src/main.py`.
-
-### Comandi Disponibili
-
-1.  **Visualizzare l'Aiuto Generale**:
-
-    ```bash
-    python -m src.main --help
-    ```
-
-    Questo mostrerà le opzioni globali (come `--api-key` e `--debug`) e i comandi disponibili.
-
-2.  **Comando `process`**:
-    Questo è il comando principale per elaborare un file.
-
-    ```bash
-    python -m src.main process [OPZIONI] INPUT_FILE
-    ```
-
-    - `INPUT_FILE`: Percorso al file di input da processare (es. `documenti/mio_libro.pdf`). Formati supportati: `.txt`, `.pdf`, `.epub`.
-
-    **Aiuto per il comando `process`**:
-
-    ```bash
-    python -m src.main process --help
-    ```
-
-### Esempio di Esecuzione
+#### Comandi Disponibili
 
 ```bash
-# Esempio con API key da variabile d'ambiente e un file PDF
-python -m src.main process percorso/del/tuo/libro.pdf
-
-# Esempio specificando l'API key e abilitando il logging di debug
-python -m src.main --api-key="sk-xxxxxxxxxxxxxxx" --debug process altro_documento.epub
+python -m src.cli.extract_text [OPZIONI] INPUT_FILE
 ```
 
-L'elaborazione potrebbe richiedere tempo, specialmente per file lunghi e a causa delle chiamate all'API LLM.
+**Opzioni:**
 
-## Struttura dell'Output
+- `--output-dir TEXT`: Directory dove salvare il testo estratto (default: `extracted_texts_output/`)
+- `--help`: Mostra il messaggio di aiuto
 
-Tutti i file generati durante l'elaborazione vengono salvati nella directory `output/`. Per ogni file di input, viene creata una sottodirectory specifica.
+#### Esempi di Utilizzo
 
-Esempio, per un input `mio_libro.pdf`:
+```bash
+# Estrazione con directory di output predefinita
+python -m src.cli.extract_text mio_libro.pdf
+
+# Estrazione specificando una directory di output
+python -m src.cli.extract_text --output-dir="miei_testi" mio_libro.epub
+```
+
+### Struttura dell'Output
+
+Il testo estratto viene salvato nella directory specificata (o in `extracted_texts_output/` se non specificata) con il seguente formato:
+
+```
+extracted_texts_output/
+└── nome_file_originale_extracted.txt
+```
+
+### Gestione degli Errori
+
+Il tool gestisce i seguenti casi:
+
+- File non trovato
+- Formato file non supportato
+- Errori durante l'estrazione del testo
+- Problemi di scrittura su disco
+
+Messaggi di errore chiari vengono mostrati in console per aiutare l'utente a risolvere eventuali problemi.
+
+### Test
+
+Per eseguire i test del tool di estrazione:
+
+```bash
+# Test con file TXT
+python -m src.cli.extract_text test.txt
+
+# Test con file PDF
+python -m src.cli.extract_text test.pdf
+
+# Test con file EPUB
+python -m src.cli.extract_text test.epub
+```
+
+## Tool di Sintesi Incrementale
+
+### Descrizione
+
+Il tool di sintesi incrementale è un'applicazione CLI che elabora documenti di testo, estrae il contenuto, lo suddivide in porzioni gestibili, genera riassunti utilizzando un LLM di OpenAI, e produce una sintesi finale completa.
+
+### Funzionalità Principali
+
+- **Estrazione Testo Multi-Formato**: Supporta file `.txt`, `.pdf`, e `.epub`
+- **Suddivisione Intelligente**: Divide il testo in chunk di circa 10.000 parole
+- **Sintesi Incrementale**: Genera riassunti per ogni chunk usando l'API di OpenAI
+- **Aggregazione dei Riassunti**: Unisce tutti i riassunti in un unico file
+- **Sintesi Finale**: Produce una sintesi finale completa in formato Markdown
+
+### Prerequisiti
+
+- Python 3.8 o superiore
+- Una API key valida di OpenAI
+- Le dipendenze elencate in `requirements.txt`
+
+### Installazione
+
+1. **Clonare il Repository**
+
+   ```bash
+   git clone <url_del_repository>
+   cd tool_sintesi_incrementale
+   ```
+
+2. **Creare e Attivare l'Ambiente Virtuale**
+
+   ```bash
+   python -m venv venv
+   # Windows (PowerShell)
+   .\venv\Scripts\Activate.ps1
+   # Windows (cmd.exe)
+   .\venv\Scripts\activate.bat
+   # Linux/macOS
+   source venv/bin/activate
+   ```
+
+3. **Installare le Dipendenze**
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+### Configurazione
+
+#### API Key di OpenAI
+
+Il tool richiede una API key di OpenAI. Puoi configurarla in due modi:
+
+1. **Variabile d'Ambiente (Raccomandato)**:
+   Crea un file `.env` nella directory principale del progetto con:
+
+   ```
+   OPENAI_API_KEY="la_tua_vera_api_key"
+   ```
+
+2. **Opzione CLI**:
+   Passa la API key direttamente come opzione:
+   ```bash
+   python -m src.cli.main --api-key="la_tua_vera_api_key" process ...
+   ```
+
+### Utilizzo
+
+#### Comandi Disponibili
+
+1. **Visualizzare l'Aiuto Generale**:
+
+   ```bash
+   python -m src.cli.main --help
+   ```
+
+2. **Comando `process`**:
+   ```bash
+   python -m src.cli.main process [OPZIONI] INPUT_FILE
+   ```
+
+### Struttura dell'Output
+
+Tutti i file generati vengono salvati nella directory `output/`. Per ogni file di input, viene creata una sottodirectory specifica:
 
 ```
 output/
@@ -151,45 +209,34 @@ output/
     └── mio_libro_final_summary.md          # Sintesi finale completa in formato Markdown
 ```
 
-Inoltre, una copia del testo completo estratto dal file originale viene salvata direttamente in `output/mio_libro_extracted.txt`.
-
-## Logging
+### Logging
 
 Il tool utilizza un sistema di logging configurabile:
 
-- **Console**: Messaggi di log a livello `INFO` (o `DEBUG` se si usa l'opzione `--debug`) vengono stampati sulla console durante l'esecuzione.
-- **File**: Messaggi di log dettagliati (a livello `DEBUG`) vengono salvati nel file `tool_sintesi_incrementale/src/logs/app.log`. Questo file ruota automaticamente quando raggiunge una certa dimensione.
+- **Console**: Messaggi di log a livello `INFO` (o `DEBUG` se si usa `--debug`)
+- **File**: Messaggi di log dettagliati in `logs/app.log`
 
-Il logging su file è particolarmente utile per il debug e per tracciare l'esecuzione in dettaglio.
+### Gestione degli Errori
 
-## Gestione degli Errori
+Il tool gestisce:
 
-Il tool implementa una gestione degli errori per:
+- File non trovati o formati non supportati
+- Errori durante l'estrazione del testo
+- Problemi di scrittura su disco
+- Errori dell'API OpenAI
 
-- File non trovati o formati non supportati.
-- Errori durante l'estrazione del testo.
-- Problemi di scrittura su disco.
-- Errori comuni dell'API OpenAI (autenticazione, rate limit, timeout, ecc.).
+### Test
 
-Messaggi di errore chiari vengono forniti sia in console che nei file di log.
+Per eseguire i test:
 
-## Esecuzione dei Test
+```bash
+# Tutti i test
+python -m unittest discover tests
 
-Il progetto include test unitari e di integrazione. Per eseguirli:
+# Test specifici
+python -m unittest tests.test_text_extraction
+```
 
-1.  Assicurati che l'ambiente virtuale sia attivo e le dipendenze (incluse quelle di test) siano installate.
-2.  Dalla directory principale del progetto (`tool_sintesi_incrementale`), esegui:
+```
 
-    Per tutti i test:
-
-    ```bash
-    python -m unittest discover tests
-    ```
-
-    Per un file di test specifico (es. `test_text_extraction.py`):
-
-    ```bash
-    python -m unittest tests.test_text_extraction
-    ```
-
-Alcuni test di integrazione o test che interagiscono con API esterne potrebbero richiedere configurazioni specifiche (come API key fittizie o mock) o essere più lenti.
+```

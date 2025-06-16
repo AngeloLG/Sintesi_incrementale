@@ -4,20 +4,14 @@ from typing import List, Optional
 
 logger = logging.getLogger(__name__)
 
-def save_text_chunks(chunks: List[str], base_output_dir: str, original_filename: str) -> List[str]:
+def save_text_chunks(chunks: List[str], chunks_dir: str, original_filename: str) -> List[str]:
     """
-    Saves a list of text chunks to individual .txt files in a specified directory.
-
-    Each chunk file will be named based on the original filename and chunk number.
-    A subdirectory named after the original filename (without extension) will be created
-    within the base_output_dir to store these chunks.
+    Saves a list of text chunks to individual .txt files in the chunks directory.
 
     Args:
         chunks (list[str]): A list of strings, where each string is a text chunk.
-        base_output_dir (str): The base directory where the output subdirectory will be created.
-                                (e.g., "output")
+        chunks_dir (str): The directory where to save the chunks (e.g., "output/nome_libro/chunks").
         original_filename (str): The name of the original input file (e.g., "my_book.pdf").
-                                 Used to create a subdirectory and name the chunk files.
 
     Returns:
         list[str]: A list of paths to the saved chunk files.
@@ -30,52 +24,41 @@ def save_text_chunks(chunks: List[str], base_output_dir: str, original_filename:
         logger.info("Nessun chunk fornito, nessun file verrà salvato.")
         return []
 
-    filename_stem = os.path.splitext(os.path.basename(original_filename))[0]
-    # Directory for this specific file's chunks, e.g., output/original_filename/
-    file_specific_chunk_dir = os.path.join(base_output_dir, filename_stem)
-    
     try:
-        if not os.path.exists(file_specific_chunk_dir):
-            os.makedirs(file_specific_chunk_dir)
-            logger.info(f"Creata directory per i chunk: {file_specific_chunk_dir}")
+        if not os.path.exists(chunks_dir):
+            os.makedirs(chunks_dir)
+            logger.info(f"Creata directory per i chunk: {chunks_dir}")
     except OSError as e:
-        logger.error(f"Errore durante la creazione della directory {file_specific_chunk_dir}: {e}", exc_info=True)
-        raise # Rilancia l'eccezione per essere gestita dal chiamante (es. main.py)
+        logger.error(f"Errore durante la creazione della directory {chunks_dir}: {e}", exc_info=True)
+        raise
 
     saved_paths = []
     for i, chunk_text in enumerate(chunks):
-        chunk_filename = f"{filename_stem}_chunk_{i+1:03d}.txt"
-        chunk_filepath = os.path.join(file_specific_chunk_dir, chunk_filename)
+        chunk_filename = f"chunk_{i+1:03d}.txt"
+        chunk_filepath = os.path.join(chunks_dir, chunk_filename)
         try:
             with open(chunk_filepath, 'w', encoding='utf-8') as f:
                 f.write(chunk_text)
             saved_paths.append(chunk_filepath)
-            # logger.debug(f"Chunk {i+1} salvato in: {chunk_filepath}") # Log a livello DEBUG
         except IOError as e:
             logger.error(f"Errore I/O durante il salvataggio del chunk {chunk_filepath}: {e}", exc_info=True)
-            # Decidere se rilanciare o continuare con gli altri chunk.
-            # Per ora, continuiamo, ma potremmo voler rendere questo configurabile o più robusto.
-            # Se un chunk non viene salvato, potrebbe influire sulle fasi successive.
-            # Consideriamo di rilanciare per ora, per rendere l'errore più evidente.
             raise
     
-    logger.info(f"{len(saved_paths)} chunks salvati in {file_specific_chunk_dir}")
+    logger.info(f"{len(saved_paths)} chunks salvati in {chunks_dir}")
     return saved_paths
 
-def aggregate_summaries(summary_file_paths: List[str], output_dir: str, original_filename: str) -> Optional[str]:
+def aggregate_summaries(summary_file_paths: List[str], summaries_dir: str, original_filename: str) -> Optional[str]:
     """
     Aggrega il contenuto di più file di riassunto di chunk in un unico file di testo.
 
     Args:
         summary_file_paths (list[str]): Una lista di percorsi ai file di riassunto dei chunk.
-        output_dir (str): La directory dove salvare il file aggregato dei riassunti.
-                                     (solitamente la stessa directory che contiene la sottodirectory "summaries")
-                                     e.g., "output/my_book/"
-        original_filename (str): Il nome del file originale, usato per nominare il file aggregato.
-                                  (e.g., "my_book.pdf")
+        summaries_dir (str): La directory dove salvare il file aggregato dei riassunti.
+                           (solitamente output/nome_libro/summaries/)
+        original_filename (str): Il nome del file originale.
 
     Returns:
-        str | None: Il percorso al file di testo aggregato se l'operazione ha successo e ci sono riassunti,
+        str | None: Il percorso al file di testo aggregato se l'operazione ha successo,
                     None altrimenti o in caso di errore.
     """
     if not summary_file_paths:
@@ -83,15 +66,12 @@ def aggregate_summaries(summary_file_paths: List[str], output_dir: str, original
         return None
 
     all_summaries_content = []
-    filename_stem = os.path.splitext(os.path.basename(original_filename))[0]
 
     for i, summary_path in enumerate(summary_file_paths):
         try:
             with open(summary_path, 'r', encoding='utf-8') as f_summary:
                 content = f_summary.read().strip()
-                if content: # Only add if there is actual content
-                    # Extract the chunk number from the summary_path for better header
-                    # Assuming summary_path is like .../filename_stem_chunk_NNN_summary.txt
+                if content:
                     summary_filename_only = os.path.basename(summary_path)
                     header = f"--- INIZIO RIASSUNTO CHUNK {i+1} ({summary_filename_only}) ---"
                     footer = f"--- FINE RIASSUNTO CHUNK {i+1} ---"
@@ -105,45 +85,39 @@ def aggregate_summaries(summary_file_paths: List[str], output_dir: str, original
 
     if not all_summaries_content:
         logger.warning("Nessun contenuto valido trovato nei file di riassunto forniti. File aggregato non creato.")
-        return None # Return None if no content was aggregated
+        return None
 
-    aggregated_text = "".join(all_summaries_content).strip() #.strip() finale per rimuovere eventuali doppi newline alla fine
+    aggregated_text = "".join(all_summaries_content).strip()
     
-    # Additional check: if after joining, the text is effectively empty, return None
     if not aggregated_text:
         logger.warning("Il testo aggregato finale è vuoto. File aggregato non creato.")
         return None
 
-    aggregated_filename = f"{filename_stem}_aggregated_summaries.txt"
-    aggregated_filepath = os.path.join(output_dir, aggregated_filename)
+    aggregated_filename = "aggregated_summaries.txt"
+    aggregated_filepath = os.path.join(summaries_dir, aggregated_filename)
 
     try:
-        # Assicurarsi che la directory di output esista
-        if not os.path.exists(output_dir):
-            os.makedirs(output_dir)
-            logger.info(f"Creata directory per il file aggregato: {output_dir}")
+        if not os.path.exists(summaries_dir):
+            os.makedirs(summaries_dir)
+            logger.info(f"Creata directory per il file aggregato: {summaries_dir}")
             
         with open(aggregated_filepath, 'w', encoding='utf-8') as f_agg:
             f_agg.write(aggregated_text)
         logger.info(f"Riassunti aggregati salvati in: {aggregated_filepath}")
         return aggregated_filepath
-    except OSError as e:
-        logger.error(f"Errore OS durante la creazione della directory {output_dir} o il salvataggio del file {aggregated_filepath}: {e}", exc_info=True)
-        return None # Restituisce None in caso di errore di salvataggio
-    except IOError as e:
-        logger.error(f"Errore I/O durante il salvataggio del file dei riassunti aggregati {aggregated_filepath}: {e}", exc_info=True)
+    except (OSError, IOError) as e:
+        logger.error(f"Errore durante il salvataggio del file dei riassunti aggregati {aggregated_filepath}: {e}", exc_info=True)
         return None
 
-def save_final_summary(summary_text: str, output_dir: str, original_filename: str) -> Optional[str]:
+def save_final_summary(summary_text: str, summaries_dir: str, original_filename: str) -> Optional[str]:
     """
     Salva il testo della sintesi finale in un file Markdown.
 
     Args:
         summary_text (str): Il testo della sintesi finale.
-        output_dir (str): La directory dove salvare il file di sintesi finale.
-                          (Solitamente output/<nome_file_originale>/)
-        original_filename (str): Il nome del file originale, usato per nominare il file di sintesi.
-                                  (e.g., "my_book.pdf")
+        summaries_dir (str): La directory dove salvare il file di sintesi finale.
+                           (Solitamente output/nome_libro/summaries/)
+        original_filename (str): Il nome del file originale.
 
     Returns:
         str | None: Il percorso al file Markdown della sintesi finale se l'operazione ha successo,
@@ -154,24 +128,20 @@ def save_final_summary(summary_text: str, output_dir: str, original_filename: st
         return None
 
     filename_stem = os.path.splitext(os.path.basename(original_filename))[0]
-    summary_filename = f"{filename_stem}_final_summary.md"
-    summary_filepath = os.path.join(output_dir, summary_filename)
+    summary_filename = f"{filename_stem}.md"
+    summary_filepath = os.path.join(summaries_dir, summary_filename)
 
     try:
-        # Assicurarsi che la directory di output esista
-        if not os.path.exists(output_dir):
-            os.makedirs(output_dir)
-            logger.info(f"Creata directory per la sintesi finale: {output_dir}")
+        if not os.path.exists(summaries_dir):
+            os.makedirs(summaries_dir)
+            logger.info(f"Creata directory per la sintesi finale: {summaries_dir}")
 
         with open(summary_filepath, 'w', encoding='utf-8') as f:
             f.write(summary_text)
         logger.info(f"Sintesi finale salvata in: {summary_filepath}")
         return summary_filepath
-    except OSError as e:
-        logger.error(f"Errore OS durante la creazione della directory {output_dir} o il salvataggio del file {summary_filepath}: {e}", exc_info=True)
-        return None # Ritorna None in caso di errore di I/O o OS
-    except IOError as e:
-        logger.error(f"Errore I/O durante il salvataggio della sintesi finale {summary_filepath}: {e}", exc_info=True)
+    except (OSError, IOError) as e:
+        logger.error(f"Errore durante il salvataggio della sintesi finale {summary_filepath}: {e}", exc_info=True)
         return None
 
 if __name__ == '__main__':
